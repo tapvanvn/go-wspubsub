@@ -34,8 +34,8 @@ securityContext: {}
 
 service:
   name: ws-pubsub
-  type: NodePort
-  port: 9000
+  type: LoadBalancer #this is for test only, config to NodePort for secure
+  port: 80
   targetPort: 8080
 
 resources: {}

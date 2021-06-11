@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/tapvanvn/go-wspubsub/entity"
 	"github.com/tapvanvn/go-wspubsub/runtime"
 )
 
@@ -39,12 +40,12 @@ var upgrader = websocket.Upgrader{
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
-	publisher bool
-	topics    []*Topic
 
 	// The websocket connection.
 	conn *websocket.Conn
 
+	publishTopics   []string
+	subscribeTopics []string
 	// Buffered channel of outbound messages.
 	send chan []byte
 }
@@ -60,10 +61,13 @@ func (c *Client) load() {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		for _, topic := range c.topics {
-			topic.unregister <- c
-			c.conn.Close()
+		for _, topic := range c.subscribeTopics {
+			unregisterSubscribe(topic, c)
 		}
+		for _, topic := range c.subscribeTopics {
+			unregisterSubscribe(topic, c)
+		}
+		c.conn.Close()
 	}()
 
 	c.conn.SetReadLimit(maxMessageSize)
@@ -84,25 +88,54 @@ func (c *Client) readPump() {
 	}
 }
 
+//TODO: secure this
 func (c *Client) processMessage(message []byte) {
-	var raw map[string]interface{}
+	raw := &entity.Message{}
 
-	json.Unmarshal(message, &raw)
+	fmt.Println("receive:", string(message))
 
-	if element, ok := raw["topic"]; ok {
-		if c.publisher {
-			topicString := element.(string)
-			topics := strings.Split(topicString, ",")
-			for _, topic := range topics {
-				topic = strings.TrimSpace(topic)
-				if len(topic) > 0 {
-					topicHub := GetTopic(topic)
-					topicHub.broadcast <- message
+	err := json.Unmarshal(message, &raw)
+	if err == nil {
+
+		topic := strings.TrimSpace(raw.Topic)
+
+		if topic == "control" {
+			register := &entity.Register{}
+			err := json.Unmarshal([]byte(raw.Message), register)
+			if err == nil {
+				//if register, ok := raw.Message.(*entity.Register); ok {
+
+				if register.IsPublisher {
+
+					if register.IsUnregister {
+
+						go unregisterPublish(register.Topic, c)
+
+					} else {
+
+						go registerPublish(register.Topic, c)
+					}
+				} else {
+					if register.IsUnregister {
+
+						go unregisterSubscribe(register.Topic, c)
+
+					} else {
+
+						go registerSubscribe(register.Topic, c)
+					}
 				}
+			} else {
+				fmt.Println("cannot get control")
+			}
+		} else {
+
+			if len(topic) > 0 {
+
+				topicHub := GetTopic(topic)
+				topicHub.broadcast <- message
 			}
 		}
-	} else {
-		fmt.Println("not process:", message)
 	}
 }
 
@@ -155,26 +188,13 @@ func (c *Client) writePump() {
 // ServeWs handles websocket requests from the peer.
 func ServeWs(w http.ResponseWriter, r *http.Request) {
 
+	fmt.Println("client come:", r.UserAgent(), r.RemoteAddr)
+
 	if !runtime.Ready {
 
 		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("server is not ready")
 		return
-	}
-	isPublisher := false
-	if role, ok := r.Header["role"]; ok {
-		if role[0] == "publisher" {
-			isPublisher = true
-		}
-	}
-	validTopics := []string{}
-	if topicString, ok := r.Header["topics"]; ok {
-		topics := strings.Split(topicString[0], ",")
-		for _, topic := range topics {
-			topic = strings.TrimSpace(topic)
-			if len(topic) > 0 {
-				validTopics = append(validTopics, topic)
-			}
-		}
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -184,15 +204,8 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := &Client{topics: make([]*Topic, 0), conn: conn, send: make(chan []byte, 256), publisher: isPublisher}
+	client := &Client{subscribeTopics: make([]string, 0), publishTopics: make([]string, 0), conn: conn, send: make(chan []byte, 256)}
 	client.load()
-
-	for _, topic := range validTopics {
-
-		topicHub := GetTopic(topic)
-		topicHub.register <- client
-		client.topics = append(client.topics, topicHub)
-	}
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.

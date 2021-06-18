@@ -1,6 +1,9 @@
 package server
 
-import "fmt"
+import (
+	"fmt"
+	"math/rand"
+)
 
 var __topic_map map[string]*Topic = map[string]*Topic{}
 
@@ -12,6 +15,7 @@ type Topic struct {
 
 	// Inbound messages from the clients.
 	broadcast chan []byte
+	pick      chan []byte
 
 	// Register requests from the clients.
 	registerSubscribe chan *Client
@@ -30,6 +34,7 @@ func GetTopic(topic string) *Topic {
 	topicHub := &Topic{
 		topic:               topic,
 		broadcast:           make(chan []byte),
+		pick:                make(chan []byte),
 		registerSubscribe:   make(chan *Client),
 		registerPublish:     make(chan *Client),
 		unregisterSubscribe: make(chan *Client),
@@ -59,6 +64,9 @@ func unregisterPublish(topic string, client *Client) {
 	topicHub.unregisterPublish <- client
 }
 
+func close(client *Client) {
+
+}
 func (h *Topic) Run() {
 	for {
 		select {
@@ -88,8 +96,23 @@ func (h *Topic) Run() {
 				select {
 				case client.send <- message:
 				default:
-
 					delete(h.subscribers, client)
+				}
+			}
+		case pick := <-h.pick:
+			num := len(h.subscribers)
+			if num > 0 {
+				choice := rand.Intn(num)
+				i := 0
+				for client := range h.subscribers {
+					if i != choice {
+						continue
+					}
+					select {
+					case client.send <- pick:
+					default:
+						delete(h.subscribers, client)
+					}
 				}
 			}
 		}

@@ -133,7 +133,13 @@ func (c *Client) processMessage(message []byte) {
 			if len(topic) > 0 {
 
 				topicHub := GetTopic(topic)
-				topicHub.broadcast <- message
+				msgType, ok := raw.Attributes["type"]
+				if !ok || msgType != "pick_one" {
+					topicHub.broadcast <- message
+				} else {
+					topicHub.pick <- message
+				}
+
 			}
 		}
 	}

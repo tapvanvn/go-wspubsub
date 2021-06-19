@@ -153,6 +153,7 @@ func (c *Client) processMessage(message []byte) {
 func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
+		close(c)
 		ticker.Stop()
 		c.conn.Close()
 	}()

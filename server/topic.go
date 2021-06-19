@@ -65,7 +65,10 @@ func unregisterPublish(topic string, client *Client) {
 }
 
 func close(client *Client) {
-
+	for _, hub := range __topic_map {
+		delete(hub.subscribers, client)
+		delete(hub.publishers, client)
+	}
 }
 func (h *Topic) Run() {
 	for {
@@ -103,9 +106,11 @@ func (h *Topic) Run() {
 			num := len(h.subscribers)
 			if num > 0 {
 				choice := rand.Intn(num)
+				fmt.Println("sent to:", choice, num)
 				i := 0
 				for client := range h.subscribers {
 					if i != choice {
+						i++
 						continue
 					}
 					select {

@@ -27,7 +27,9 @@ type Topic struct {
 }
 
 func GetTopic(topic string) *Topic {
+
 	if oldTopic, ok := __topic_map[topic]; ok {
+
 		return oldTopic
 	}
 
@@ -70,6 +72,7 @@ func close(client *Client) {
 		delete(hub.publishers, client)
 	}
 }
+
 func (h *Topic) Run() {
 	for {
 		select {
@@ -118,6 +121,7 @@ func (h *Topic) Run() {
 					default:
 						delete(h.subscribers, client)
 					}
+					break
 				}
 			}
 		}

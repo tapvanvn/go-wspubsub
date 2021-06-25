@@ -56,6 +56,8 @@ func main() {
 		w.Write([]byte("i am ok"))
 	})
 
+	server.ObserveTier1Check()
+
 	fmt.Println("listen on port", port)
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))

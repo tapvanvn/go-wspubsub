@@ -5,7 +5,7 @@
 replicaCount: 1
 namespace: default
 image:
-  repository: tapvanvn/rpi_ws_pubsub
+  repository: tapvanvn/ws_pubsub
   pullPolicy: IfNotPresent
   tag: 0.0.1
 
@@ -34,7 +34,7 @@ securityContext: {}
 
 service:
   name: ws-pubsub
-  type: LoadBalancer #this is for test only, config to NodePort for secure
+  type: NodePort #this is for test only, config to NodePort for secure
   port: 80
   targetPort: 8080
 

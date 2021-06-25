@@ -8,8 +8,8 @@ tag=$(<./version.txt)
 
 server_url=tapvanvn
 
-docker build -t $server_url/rpi_ws_pubsub:$tag -f docker/rpi.dockerfile ./
+docker build -t $server_url/ws_pubsub:$tag -f docker/gcloud.dockerfile ./
 
-docker push $server_url/rpi_ws_pubsub:$tag
+docker push $server_url/ws_pubsub:$tag
 
 popd

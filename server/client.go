@@ -48,6 +48,7 @@ type Client struct {
 	subscribeTopics []string
 	// Buffered channel of outbound messages.
 	send chan []byte
+	live bool
 }
 
 func (c *Client) load() {
@@ -61,6 +62,7 @@ func (c *Client) load() {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
+		c.live = false
 		for _, topic := range c.subscribeTopics {
 			unregisterSubscribe(topic, c)
 		}
@@ -83,8 +85,7 @@ func (c *Client) readPump() {
 		}
 		fmt.Println(string(message))
 		c.processMessage(message)
-		//message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		//c.hub.broadcast <- message
+
 	}
 }
 
@@ -103,7 +104,6 @@ func (c *Client) processMessage(message []byte) {
 			register := &entity.Register{}
 			err := json.Unmarshal([]byte(raw.Message), register)
 			if err == nil {
-				//if register, ok := raw.Message.(*entity.Register); ok {
 
 				if register.IsPublisher {
 
@@ -128,6 +128,13 @@ func (c *Client) processMessage(message []byte) {
 			} else {
 				fmt.Println("cannot get control")
 			}
+		} else if topic == "response" {
+
+			if code, ok := raw.Attributes["raycode"]; ok {
+
+				responseTier1(code)
+			}
+
 		} else {
 
 			if len(topic) > 0 {
@@ -135,11 +142,24 @@ func (c *Client) processMessage(message []byte) {
 				topicHub := GetTopic(topic)
 				msgType, ok := raw.Attributes["type"]
 				if !ok || msgType != "pick_one" {
-					topicHub.broadcast <- message
-				} else {
-					topicHub.pick <- message
-				}
+					raw.Tier = 0
+					topicHub.broadcast <- raw
 
+				} else {
+
+					tier, isTier := raw.Attributes["tier"]
+
+					if isTier {
+
+						if tier == "one" {
+							raw.Tier = 1
+						} else if tier == "two" {
+							raw.Tier = 2
+						}
+					}
+
+					topicHub.pick <- raw
+				}
 			}
 		}
 	}
@@ -213,6 +233,7 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 
 	client := &Client{subscribeTopics: make([]string, 0), publishTopics: make([]string, 0), conn: conn, send: make(chan []byte, 256)}
 	client.load()
+	client.live = true
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.

@@ -1,4 +1,4 @@
-package entity
+package server
 
 type Register struct {
 	IsUnregister bool   `json:"is_unregister"`

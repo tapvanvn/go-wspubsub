@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
-
-	"github.com/tapvanvn/go-wspubsub/entity"
 )
 
 var __topic_map map[string]*Topic = map[string]*Topic{}
@@ -17,8 +15,8 @@ type Topic struct {
 	subscribers map[*Client]bool
 
 	// Inbound messages from the clients.
-	broadcast chan *entity.Message
-	pick      chan *entity.Message
+	broadcast chan *Message
+	pick      chan *Message
 
 	// Register requests from the clients.
 	registerSubscribe chan *Client
@@ -38,8 +36,8 @@ func GetTopic(topic string) *Topic {
 
 	topicHub := &Topic{
 		topic:               topic,
-		broadcast:           make(chan *entity.Message),
-		pick:                make(chan *entity.Message),
+		broadcast:           make(chan *Message),
+		pick:                make(chan *Message),
 		registerSubscribe:   make(chan *Client),
 		registerPublish:     make(chan *Client),
 		unregisterSubscribe: make(chan *Client),
@@ -107,13 +105,27 @@ func (h *Topic) Run() {
 			fmt.Println("broadcast to:", len(h.subscribers), "member")
 			data, err := json.Marshal(message)
 			if err == nil {
+				if message.NotMe {
+					for client := range h.subscribers {
+						if client == message.client {
+							continue
+						}
+						select {
+						case client.send <- data:
+						default:
+							client.live = false
+							delete(h.subscribers, client)
+						}
+					}
+				} else {
+					for client := range h.subscribers {
 
-				for client := range h.subscribers {
-					select {
-					case client.send <- data:
-					default:
-						client.live = false
-						delete(h.subscribers, client)
+						select {
+						case client.send <- data:
+						default:
+							client.live = false
+							delete(h.subscribers, client)
+						}
 					}
 				}
 			}

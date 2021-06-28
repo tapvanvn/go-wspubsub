@@ -4,22 +4,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tapvanvn/go-wspubsub/entity"
 	"github.com/tapvanvn/go-wspubsub/utility"
 )
 
 var __mux sync.Mutex
-var __msgmap map[string]*entity.Message = make(map[string]*entity.Message)
+var __msgmap map[string]*Message = make(map[string]*Message)
 var __timemap map[string]int64 = map[string]int64{}
 var __tier1_checking bool = false
 
 var __tier2_checking bool = false
 var __tier2mux sync.Mutex
-var __tier2map map[*entity.Message]*Client = make(map[*entity.Message]*Client)
+var __tier2map map[*Message]*Client = make(map[*Message]*Client)
 
 type Observer struct {
 	client  *Client
-	message *entity.Message
+	message *Message
 }
 
 func responseTier1(code string) {
@@ -56,7 +55,7 @@ func ObserveTier1Check() {
 	go utility.Schedule(observeTie1Check, time.Second)
 }
 
-func ObserveTier1(message *entity.Message) {
+func ObserveTier1(message *Message) {
 	__mux.Lock()
 	code := utility.GenCode(5)
 	message.Attributes["raycode"] = code
@@ -86,7 +85,7 @@ func ObserverTier2Check() {
 	utility.Schedule(observerTier2Check, time.Second*2)
 }
 
-func ObserveTier2(message *entity.Message, client *Client) {
+func ObserveTier2(message *Message, client *Client) {
 	__tier2mux.Lock()
 	__tier2map[message] = client
 	__tier2mux.Unlock()

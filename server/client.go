@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/tapvanvn/go-wspubsub/entity"
 	"github.com/tapvanvn/go-wspubsub/runtime"
 )
 
@@ -91,7 +90,9 @@ func (c *Client) readPump() {
 
 //TODO: secure this
 func (c *Client) processMessage(message []byte) {
-	raw := &entity.Message{}
+	raw := &Message{
+		client: c,
+	}
 
 	fmt.Println("receive:", string(message))
 
@@ -101,7 +102,7 @@ func (c *Client) processMessage(message []byte) {
 		topic := strings.TrimSpace(raw.Topic)
 
 		if topic == "control" {
-			register := &entity.Register{}
+			register := &Register{}
 			err := json.Unmarshal([]byte(raw.Message), register)
 			if err == nil {
 
@@ -141,11 +142,11 @@ func (c *Client) processMessage(message []byte) {
 
 				topicHub := GetTopic(topic)
 				msgType, ok := raw.Attributes["type"]
-				if !ok || msgType != "pick_one" {
+				if !ok {
 					raw.Tier = 0
 					topicHub.broadcast <- raw
 
-				} else {
+				} else if msgType == "pick_one" {
 
 					tier, isTier := raw.Attributes["tier"]
 
@@ -159,6 +160,12 @@ func (c *Client) processMessage(message []byte) {
 					}
 
 					topicHub.pick <- raw
+				} else {
+					if msgType == "not_me" {
+						raw.NotMe = true
+					}
+					raw.Tier = 0
+					topicHub.broadcast <- raw
 				}
 			}
 		}

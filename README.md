@@ -1,4 +1,6 @@
 # wspubsub
+This is a pubsub server base on websocket
+
 - type
     -  pick_one : pick only one randomly subscriber to send message
     -  not_me: dont resend this message to me

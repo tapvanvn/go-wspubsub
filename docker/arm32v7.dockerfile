@@ -21,6 +21,6 @@ COPY --from=build               /src/go-wspubsub /
 COPY config/config.json        /config/config.json 
 COPY config/route.json        /config/route.json 
 
-ENV PORT=8080
+ENV PORT=80
 
 ENTRYPOINT ["/go-wspubsub"]

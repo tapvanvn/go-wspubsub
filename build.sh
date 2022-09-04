@@ -10,7 +10,7 @@ if [ $num_arg -ne 1 ]; then
 fi
 
 target=$1
-server_url=tapvanvn
+server_url=ghcr.io/tapvanvn/repository
 
 pushd "$DIR"
 

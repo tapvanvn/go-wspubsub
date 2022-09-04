@@ -7,7 +7,7 @@ import (
 	"github.com/tapvanvn/go-wspubsub/utility"
 )
 
-var __mux sync.Mutex
+var __mux sync.RWMutex
 var __msgmap map[string]*Message = make(map[string]*Message)
 var __timemap map[string]int64 = map[string]int64{}
 var __tier1_checking bool = false

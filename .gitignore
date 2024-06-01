@@ -16,5 +16,7 @@
 
 go.sum
 go-wspubsub
+go-wspubsub.exe
 **/token.txt
 config/config.json
+local/.build
